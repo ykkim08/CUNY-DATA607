@@ -1,0 +1,148 @@
+---
+title: "Week1 Assignment"
+author: "YoungKoung Kim"
+date: "February 3, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#### Read file
+```{r}
+mushrooms_fulldata<-read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data", header= FALSE, sep=",", na.strings = "?", stringsAsFactors=FALSE)
+
+```
+
+#### Create subset dataset mushrooms
+###### Select 7 variables: classes(V1), capcolor(V4), odor(V6), stalk-surface-below-ring(V14), stalk-color-above-ring(V15), spore-print-color(V21), habitat(V23)
+```{r}
+mushrooms <-subset(mushrooms_fulldata, select = c(V1, V4, V6, V14, V15, V21, V23))
+
+```
+
+#### Rename headers
+```{r}
+names(mushrooms) = c("classes", "cap_color", "odor", "stalk_surface_below_ring", "stalk_color_above_ring", "spore_print_color", "habitat")
+head(mushrooms)
+
+```
+
+#### Recode data
+```{r}
+mushrooms$classes[mushrooms$classes =="e"] <-"edible"
+mushrooms$classes[mushrooms$classes =="p"] <-"poisonous"
+
+mushrooms$cap_color[mushrooms$cap_color =="n"] <- "brown"
+mushrooms$cap_color[mushrooms$cap_color =="b"] <- "buff"
+mushrooms$cap_color[mushrooms$cap_color =="c"] <- "cinnamon"
+mushrooms$cap_color[mushrooms$cap_color =="g"] <- "gray"
+mushrooms$cap_color[mushrooms$cap_color =="r"] <- "green"
+mushrooms$cap_color[mushrooms$cap_color =="p"] <- "pink"
+mushrooms$cap_color[mushrooms$cap_color =="u"] <- "purple"
+mushrooms$cap_color[mushrooms$cap_color =="e"] <- "red"
+mushrooms$cap_color[mushrooms$cap_color =="w"] <- "white"
+mushrooms$cap_color[mushrooms$cap_color =="y"] <- "yellow"
+
+mushrooms$odor[mushrooms$odor =="a"] <- "almond"
+mushrooms$odor[mushrooms$odor =="l"] <- "anise"
+mushrooms$odor[mushrooms$odor =="c"] <- "creosote"
+mushrooms$odor[mushrooms$odor =="y"] <- "fishy"
+mushrooms$odor[mushrooms$odor =="f"] <- "foul"
+mushrooms$odor[mushrooms$odor =="m"] <- "musty"
+mushrooms$odor[mushrooms$odor =="n"] <- "none"
+mushrooms$odor[mushrooms$odor =="p"] <- "pungent"
+mushrooms$odor[mushrooms$odor =="s"] <- "spicy"
+
+mushrooms$stalk_surface_below_ring[mushrooms$stalk_surface_below_ring =="f"] <- "fibrous"
+mushrooms$stalk_surface_below_ring[mushrooms$stalk_surface_below_ring =="y"] <- "scaly"
+mushrooms$stalk_surface_below_ring[mushrooms$stalk_surface_below_ring =="k"] <- "silky"
+mushrooms$stalk_surface_below_ring[mushrooms$stalk_surface_below_ring =="s"] <- "smooth"
+
+mushrooms$stalk_color_above_ring[mushrooms$stalk_color_above_ring =="n"] <- "brown"
+mushrooms$stalk_color_above_ring[mushrooms$stalk_color_above_ring =="b"] <- "buff"
+mushrooms$stalk_color_above_ring[mushrooms$stalk_color_above_ring =="c"] <- "cinnamon"
+mushrooms$stalk_color_above_ring[mushrooms$stalk_color_above_ring =="g"] <- "gray"
+mushrooms$stalk_color_above_ring[mushrooms$stalk_color_above_ring =="o"] <- "orange"
+mushrooms$stalk_color_above_ring[mushrooms$stalk_color_above_ring =="p"] <- "pink"
+mushrooms$stalk_color_above_ring[mushrooms$stalk_color_above_ring =="e"] <- "red"
+mushrooms$stalk_color_above_ring[mushrooms$stalk_color_above_ring =="w"] <- "white"
+mushrooms$stalk_color_above_ring[mushrooms$stalk_color_above_ring =="y"] <- "yellow"
+
+mushrooms$spore_print_color[mushrooms$spore_print_color =="k"] <- "black"
+mushrooms$spore_print_color[mushrooms$spore_print_color =="n"] <- "brown"
+mushrooms$spore_print_color[mushrooms$spore_print_color =="b"] <- "buff"
+mushrooms$spore_print_color[mushrooms$spore_print_color =="h"] <- "chocolate"
+mushrooms$spore_print_color[mushrooms$spore_print_color =="r"] <- "green"
+mushrooms$spore_print_color[mushrooms$spore_print_color =="o"] <- "orange"
+mushrooms$spore_print_color[mushrooms$spore_print_color =="u"] <- "purple"
+mushrooms$spore_print_color[mushrooms$spore_print_color =="w"] <- "white"
+mushrooms$spore_print_color[mushrooms$spore_print_color =="y"] <- "yellow"
+
+mushrooms$habitat[mushrooms$habitat =="g"] <- "grasses"
+mushrooms$habitat[mushrooms$habitat =="l"] <- "leaves"
+mushrooms$habitat[mushrooms$habitat =="m"] <- "medows"
+mushrooms$habitat[mushrooms$habitat =="p"] <- "paths"
+mushrooms$habitat[mushrooms$habitat =="u"] <- "urban"
+mushrooms$habitat[mushrooms$habitat =="w"] <- "waste"
+mushrooms$habitat[mushrooms$habitat =="d"] <- "woods"
+```
+
+#### Check frequency of classes by attribute
+```{r}
+table(mushrooms$cap_color, mushrooms$classes)
+table(mushrooms$odor, mushrooms$classes)
+table(mushrooms$stalk_surface_below_ring, mushrooms$classes)
+table(mushrooms$stalk_color_above_ring, mushrooms$classes)
+table(mushrooms$spore_print_color, mushrooms$classes)
+table(mushrooms$habitat, mushrooms$classes)
+
+```
+
+#### Check the logical rules 
+###### **diagnostics**: 'safe' if it is not poisonous based on the logical rule, 'not safe'if it is poisonous based on the logical rule
+###### **missed**: Number of cases where dignostics = safe but classes = poisonous
+###### **accuracy**: 100*(1 - missed/total case(N = 8124))%
+
+###### *P_1) odor=NOT(almond.OR.anise.OR.none)*
+```{r}
+mushrooms$diagnostics1 <- ifelse( ((mushrooms$odor != "almond") & (mushrooms$odor != "anise") &(mushrooms$odor != "none")) , "not safe", "safe")
+diagnostics1_table <- table(mushrooms$diagnostics1, mushrooms$classes)
+diagnostics1_table
+accuracy1<- 100*(1-(nrow(subset(mushrooms, diagnostics1 == "safe" & classes =="poisonous"))/nrow(mushrooms)))
+accuracy1
+
+```
+
+###### *P_2) spore-print-color=green*
+```{r}
+mushrooms$diagnostics2 <- ifelse( (mushrooms$diagnostics1 == "not safe" | mushrooms$spore_print_color == "green"), "not safe", "safe")
+diagnostics2_table <- table(mushrooms$diagnostics2, mushrooms$classes)
+diagnostics2_table
+accuracy2<- 100*(1-(nrow(subset(mushrooms, diagnostics2 == "safe" & classes =="poisonous"))/nrow(mushrooms)))
+accuracy2
+
+```
+
+###### *P_3) odor=none.AND.stalk-surface-below-ring=scaly.AND.(stalk-color-above-ring=NOT.brown)* 
+```{r}
+mushrooms$diagnostics3 <- ifelse( (mushrooms$diagnostics2 == "not safe" | (mushrooms$odor == "none" & mushrooms$stalk_surface_below_ring == "scaly" & mushrooms$stalk_color_above_ring != "brown")), "not safe", "safe")
+diagnostics3_table <- table(mushrooms$diagnostics3, mushrooms$classes)
+diagnostics3_table
+accuracy3<- 100*(1-(nrow(subset(mushrooms, diagnostics3 == "safe" & classes =="poisonous"))/nrow(mushrooms)))
+accuracy3
+
+```
+
+###### *P_4) habitat=leaves.AND.cap-color=white*
+```{r}
+mushrooms$diagnostics4 <- ifelse( (mushrooms$diagnostics3 == "not safe" | (mushrooms$habitat == "leaves") & (mushrooms$cap_color == "white")) , "not safe", "safe")
+diagnostics4_table <- table(mushrooms$diagnostics4, mushrooms$classes)
+diagnostics4_table
+accuracy4<- 100*(1-(nrow(subset(mushrooms, diagnostics4 == "safe" & classes =="poisonous"))/nrow(mushrooms)))
+accuracy4
+
+```
+
+
