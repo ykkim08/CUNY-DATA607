@@ -1,0 +1,109 @@
+---
+title: "Week2_Assignment"
+author: "YoungKoung Kim"
+date: "February 10, 2018"
+output: html_document
+---
+
+```{r echo = FALSE, results='hide', message=FALSE, warning=FALSE}
+mypw <- "xxxxx"
+library(RMySQL)
+library(htmlTable)
+
+```
+### Introduction
+When I saw this week's assingment, I was curious about movies that recently receieved high ratings by general movigoers. So, instead of asking friends/family/imaginary friends, I looked for a large dataset and found one from **movielens** (https://movielens.org/). **movielens** has very nice datasets that include movies and user ratings. Among their datasets, I chose the most recent data set, *'ml-latest-small'*. The dataset contains movie ratings by 671 users across 9125 movies between January 09, 1995 and October 16, 2016. A detailed decription of the data is available in http://files.grouplens.org/datasets/movielens/ml-latest-small-README.html
+
+Note that I used the following packages for this assignment:
+library(RMySQL)
+library(htmlTable)
+
+### Questions
+Here are the questions that I would like to answer after analyzing the data:
+
+  1. "What are the top 10 most popular movies?"
+  2. "What is the movie that has the highest rating among these top 10 movies?"
+
+### Database: movies
+The database **movies** was created in SQL. In MySQL server, three datasets - 1) *movies*, 2) *ratings* and 3) *tags* - can be found in the **movies** database. 
+
+```{r warning=FALSE}
+mydb = dbConnect(MySQL(), user = 'root', password = mypw,  dbname='movies', host='localhost')
+#list of tables in the movies database
+dbListTables(mydb)
+
+```
+
+Now, let's take a look at each table in the **movies** database.
+The first table is *movies*. It has three fields: movieID, title and genres. See the sample of a table with 5 records. 
+
+```{r}
+sampleMovies<-dbGetQuery(mydb, "select * from movies limit 5;")
+htmlTable(sampleMovies)
+
+```
+
+The second table is *ratings*. It has four fields: userId, movieID, rating and timestamp. Rating is on a 5 star scale which ranges between 0.5 and 5.0. A user gives raings to multiple movies. See the sample of a table with 5 records. 
+```{r warning=FALSE}
+sampleRatings<-dbGetQuery(mydb, "select * from ratings limit 5;")
+htmlTable(sampleRatings)
+
+```
+
+The third table is *tags*. It has three fields: userId, movieID, tag and timestamp. Tag is  a user-generated metadata about movies. See the sample of a table with 5 records. A user can provide multple tags to multiple movies. 
+```{r}
+sampleTags<-dbGetQuery(mydb, "select * from tags limit 5;")
+htmlTable(sampleTags)
+
+```
+### Questions 1: "What are the top 10 most popular movies?"
+To answer this question, in the table *movies*, I aggregated the table *ratings* to see how many users rated each movie and selected the 10 most popular movies.
+
+First, I created a temporary table *popular_movie10*
+```{r results='hide'}
+#create temporary table popular_movie10 in mydb
+dbSendQuery(mydb, "create temporary table popular_movie10
+                  select movieId, count(userId) as num_users 
+                  from ratings 
+                  group by movieId
+                  order by num_users desc
+                  limit 10;")
+```
+
+Then, I got movie titles by joining *popular_movie10* with *movies*
+```{r}
+
+popular_movie10<-dbGetQuery(mydb, "select p.movieId, title, num_users, genres  
+                                  from popular_movie10 p
+                                  inner join movies m
+                                  on p.movieId = m.movieId 
+                                  order by num_users desc;")
+htmlTable(popular_movie10)
+```
+So, **Forrest Gump (1994)** was the movie that had the largest number of users. 
+
+### Questions 2: "What is the movie that has the highest rating among these top 10 movies?"
+To answer this question, I created a temporary table *ratings_movie10* to obtain the average ratings for the top 10 most popular movies. 
+```{r results='hide'}
+#create temporary table ratings_movie10 in mydb
+dbSendQuery(mydb, "create temporary table ratings_movie10
+                   select m.movieId, title, avg(rating) as avg_rating
+                   from ratings r
+                   inner join movies m
+                   on r.movieId = m.movieId
+                   where r.movieId in (select movieId from popular_movie10)
+                   group by m.movieId;")
+
+```
+
+Then, I got movie titles by joining *popular_movie10* with *ratings_movie10*
+```{r warning=FALSE}
+
+ratings_movie10<-dbGetQuery(mydb, "select p.movieId, title, num_users, avg_rating 
+                                  from popular_movie10 p
+                                  inner join ratings_movie10 r
+                                  on p.movieId = r.movieId 
+                                  order by avg_rating desc;")
+htmlTable(ratings_movie10)
+```
+So, **Shawshank Redemption, The (1994)** had the highest rating among the top 10 most popular movies! 
