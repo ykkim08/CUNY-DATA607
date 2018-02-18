@@ -1,0 +1,109 @@
+---
+title: "Week3_Assignment"
+author: "YoungKoung Kim"
+date: "February 16, 2018"
+output: html_document
+---
+
+### Problem 3. 
+Copy the introductory example. The vector name stores the extracted names.
+
+#### (a) Use the tools of this chapter to rearrange the vector so that all elements conform to the standard first_name last_name.
+
+
+```{r}
+library(stringr)
+raw.data <- "555-1239Moe Szyslak(636) 555-0113Burns, C. Montgomery555-6542Rev. Timothy Lovejoy555 8904Ned Flanders636-555-3226Simpson, Homer5553642Dr. Julius Hibbert"
+name <- unlist(str_extract_all(raw.data, "[[:alpha:]., ]{2,}"))
+name
+```
+
+##### Steps to create *first name*
+1. Replace words that end with , or . 
+2. Extract the words
+```{r}
+first_name <- str_replace(name, "(.*\\.)|(.*\\,)", "")
+first_name <- unlist(str_extract(first_name, "\\w+"))
+first_name
+```
+##### Steps to create *last name*
+1. Extract last words or words that end with ',' 
+2. Replace ',' with '' 
+```{r}
+last_name <- str_extract(name, "(\\w+($|,))")
+last_name <- str_replace(last_name, "," , "")
+last_name
+
+first_last_name <- data.frame(first_name, last_name)
+first_last_name
+```
+
+#### (b) Construct a logical vector indicating whether a character has a title (i.e., Rev. and Dr.)
+
+Directly match "Rev." or "Dr"
+
+```{r}
+writeLines(paste(str_detect(name, "(Rev.)|(Dr.)"), name, sep = ": \t\t"))
+```
+or Detect any strings with . that have at least 2 characters  
+```{r}
+writeLines(paste(str_detect(name, "([[:alpha:]]{2,}\\.)"), name, sep = ": \t\t"))
+```
+
+#### (c) Construct a logical vector indicating whether a character has a second name.
+Second name starts with a blank and one character.
+
+```{r}
+writeLines(paste(str_detect(name, " [[:alpha:]]{1}\\."), name, sep = ": \t\t"))
+```
+
+### Problem 4. 
+Describe the types of strings that conform to the following regular expressions and construct an example that is matched by the regular expression.
+
+#### (a) [0-9]+\\$
+a charater with a digit followed by $ sign
+```{r}
+example_4a <- c("1900$ test", "some number$ error_Y2$K", "180$")
+unlist(str_extract_all(example_4a, "[0-9]+\\$"))
+```
+
+#### (b) \\b[a-z]{1,4}\\b
+a word that begins and ends with up to 4 lowercase letters       
+```{r}
+example_4b <-"R is free software and comes with ABSOLUTELY NO WARRANTY.You are welcome to redistribute it under certain conditions."
+unlist(str_extract_all(example_4b, "\\b[a-z]{1,4}\\b"))
+```
+
+#### (c) .*?\\.txt$
+any words that ends with ".txt"
+```{r}
+example_4c <-c("myfile.txt", "any text file", "week3_assignment.txt")
+unlist(str_extract_all(example_4c, ".*?\\.txt$"))
+```
+
+#### (d) \\d{2}/\\d{2}/\\d{4}
+two digits followed by '/', two digits followed by '/' and four digits. 
+```{r}
+example_4d <-c("2/16/2018", "02/16/2018", "00/00/0000", 'mm/dd/yyyy')
+unlist(str_extract_all(example_4d, "\\d{2}/\\d{2}/\\d{4}"))
+```
+
+#### (e) <(.+?)>.+?</\\1>
+strings that matches HTML tags
+```{r}
+example_4e <-c('<title>Automated Data Collection with R - Welcome</title>', "<html>Is this right?")
+unlist(str_extract_all(example_4e, "<(.+?)>.+?</\\1>"))
+```
+
+### Problem 9. 
+The following code hides a secret message. Crack it with R and regular expressions.
+
+```{r}
+raw_message  <- "clcopCow1zmstc0d87wnkig7OvdicpNuggvhryn92Gjuwczi8hqrfpRxs5Aj5dwpn0Tanwo
+Uwisdij7Lj8kpf03AT5Idr3coc0bt7yczjatOaootj55t3Nj3ne6c4Sfek.r1w1YwwojigO
+d6vrfUrbz2.2bkAnbhzgv4R9i05zEcrop.wAgnb.SqoU65fPa1otfb7wEm24k6t3sR9zqe5
+fy89n6Nd5t9kc4fE905gmc4Rgxo5nhDk!gr"
+secret_message <- unlist(str_extract_all(raw_message, "[[:upper:].! ]"))
+secret_message <- str_replace_all(str_c(secret_message, collapse = ""), fixed("."), " ")
+secret_message
+```
