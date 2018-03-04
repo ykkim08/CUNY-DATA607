@@ -1,0 +1,112 @@
+---
+title: "Week5_Assignment"
+author: "YoungKoung Kim"
+date: "March 2, 2018"
+output: html_document
+---
+
+Load library
+```{r message=FALSE}
+library(tidyr)
+library(dplyr)
+library(knitr)
+library(stringr)
+library(ggplot2)
+```
+
+#### Introduction
+For this assignment, I will create tidy data from the airline data for analysis then will examine the following questions based on the tidy data:
+
+* Q1: Overall, which airline has higher percentage of on-time arrivals?
+
+* Q2: Overall, Which city has higher percentage of on-time arrivals?
+
+* Q3: For each airline, which city has better on-time arrivals?
+
+#### Create tidy data for analysis
+Read csv file and display the initial data
+```{r}
+airlines <- read.csv("H:/DataScience/CUNY/Spring2018/DATA607/week5/airlines.csv", header= TRUE)
+kable(airlines)
+```
+
+Change the data so that a column 'City' can be included. Replace city names that have '.' with ' ' 
+```{r}
+airlines_tidy <- gather(airlines, "City", "n", 3:7)
+airlines_tidy$City <- str_replace(airlines_tidy$City, "\\.", " ")
+kable(airlines_tidy)
+```
+
+Generate two columns for arrival status to compare 'delayed' and 'on time' 
+```{r}
+airlines_arrival <- spread(airlines_tidy, Status, n)
+names(airlines_arrival)[4] <-"onTime"
+kable(airlines_arrival)
+
+```
+
+Create total, percentages of delayed and on-time. This is the final data that I'm going to use for the analysis.  
+```{r}
+airlines_arrival <- airlines_arrival %>%
+  mutate(total = onTime + delayed, pct_delayed = delayed/total*100, pct_onTime = onTime/total*100) %>% 
+  arrange(Airline, City)
+kable(airlines_arrival)
+
+```
+
+#### Q1: Overall, which airline has higher percentage of on-time arrivals?
+
+Based on the statistics and graph below, Alaska airline has slightly higher average on-time arrival percentage. 
+
+```{r}
+betterCompany <- airlines_arrival %>%
+  group_by(Airline) %>%
+  summarise(mean_onTime = mean(pct_onTime), mean_delay = mean(pct_delayed), n = n())
+
+kable(betterCompany)
+```
+
+```{r}
+ggplot(betterCompany, aes(x = Airline, y = mean_onTime, fill = Airline)) + 
+  geom_bar(stat = "identity") +
+  xlab("Airline") + ylab("On Time %")
+  
+```
+
+#### Q2: Overall, Which city has higher percentage of on-time arrivals?
+
+Based on the statistics and graph below, Phonex has the highest average on-time arrival percentage followed by San Diego, Los Angeles, Seattle. San Francisco has the lowest percentage. 
+
+```{r}
+betterCity <- airlines_arrival %>%
+  group_by(City) %>%
+  summarise(mean_onTime = mean(pct_onTime), mean_delay = mean(pct_delayed), n = n())
+
+kable(betterCity)
+```
+
+```{r}
+ggplot(betterCity, aes(x = City, y = mean_onTime, fill = City)) + 
+  geom_bar(stat = "identity") +
+  xlab("City") + ylab("On Time %")
+  
+```
+
+#### Q3: For each airline, which city has better on-time arrivals?
+This question can be examined using bar plots. For both airlines, Phoenix has the highest on-time arrival percentage. San Francisco has the lowest on-time arrival percentage. In particular, American West has the highest delayed percentage for San Francisco. This result implies that you probably want to avoid taking American West when you need to travel to San Francisco!     
+
+```{r}
+ggplot(airlines_arrival, aes(x = City, y = pct_onTime, fill = factor(Airline))) + 
+  geom_bar(stat = "identity",position="dodge") +
+  scale_fill_discrete(name = "Airline") +
+  xlab("City") + ylab("On Time %")
+
+ggplot(airlines_arrival, aes(x = City, y = pct_delayed, fill = factor(Airline))) + 
+  geom_bar(stat = "identity",position="dodge") +
+  scale_fill_discrete(name = "Airline")+
+  xlab("City") + ylab("Delayed %")  
+
+```
+
+
+
