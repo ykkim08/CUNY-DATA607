@@ -1,0 +1,114 @@
+---
+title: "Project 2 : Part III"
+author: "YoungKoung Kim"
+date: "March 12, 2018"
+output: html_document
+---
+
+Load library
+```{r message=FALSE}
+library(tidyr)
+library(dplyr)
+library(knitr)
+library(stringr)
+library(ggplot2)
+library(gridExtra)
+library(scales)
+```
+
+## Introduction
+The purposes of this project is to transform untidy data to tidy data and to conduct analyses based on the tidy datasets. The project consists of the following three topics. Each topic will include several untidy csv files to analyze.   
+
+* Mass Shootings in America
+
+* Global Suicide Rate
+
+* New York city Historical Crime Rate   
+
+## Historical New York City Crime
+
+### Data
+
+The data are obtained from Historical New York City Crime data  http://www1.nyc.gov/site/nypd/stats/crime-statistics/historical.page (Brian Liles discussed in the discussion board).In particular, the current study uses "Citywide Seven Major Felony offense 2000 - 2017".
+
+The current analysis focuses on the most recent 10 years statistics from 2008 to 2017. 
+
+### Questions
+
+The current study aims to address the following questions.
+
+* Q1: Overall, are the crime rates increasing in New York City? 
+* Q2: Which crime/offense has increased or decreased? 
+
+### Create tidy data for analysis
+Here are the example outputs of the NYC historical crime data in "wide" format to be used for the analysis. 
+
+```{r}
+crime_wide <- read.csv("C:/CUNY/Spring2018/DATA607/project2/topic3/seven-major-felony-offenses-2000-2017.csv", header= TRUE)
+
+# select only from 2008 to 2017
+crime7_wide <- crime_wide[1:7, c(1, 10:19)]
+names(crime7_wide) <- c("Crime", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017")
+# select total 
+crimeTotal_wide <- crime_wide[8, c(1, 10:19)]
+names(crimeTotal_wide) <- c("Crime", "2008", "2009", "2010", "2011", "2012", "2013", "2014", "2015", "2016", "2017")
+
+kable(head(crime7_wide, n = 10))
+kable(head(crimeTotal_wide, n = 10))
+
+```
+
+Seven offense and total datasets are transformed into long format and then merged so that the crime rate for each offense can be computed.   
+
+
+```{r warning=FALSE}
+crime7 <- gather(crime7_wide, "Year", N, 2:11) %>%
+  mutate(N = as.numeric(gsub(",", "", N)))
+crimeTotal <- gather(crimeTotal_wide, "Year", Total, 2:11) %>%
+  mutate(Total = as.numeric(gsub(",", "", Total)))
+
+kable(head(crime7, n = 10))
+kable(head(crimeTotal, n = 10))
+
+crime <- inner_join(crime7, crimeTotal, by = "Year") %>%
+  rename(Crime = Crime.x) %>%
+  mutate(Rate = N/Total, Percent = percent(N/Total)) %>%
+  select(Crime, Year, N, Total, Rate, Percent)
+```
+
+This is the first 20 observations in the final dataset to be used for the analysis. 
+
+```{r}
+kable(head(crime, n = 20))
+
+```
+
+### Data analysis
+
+#### Q1: Overall, are the crime rates increasing in New York City? 
+Overall, the crime rate in NYC seems to be decreasing since 2008. In fact, the number of crime cases is the smallest in 2017. 
+
+```{r}
+ggplot(crimeTotal, aes(x = Year, y = Total, fill = Year)) + 
+  geom_bar(stat = "identity") +
+  ggtitle("Overall Crime Rate from 2009 to 2017") +
+  xlab("Year") + ylab("Number of cases")
+
+```
+
+#### Q2: Which crime/offense has incresed or decreased? 
+From 2008 to 2017, "GRAND LARCENY" has the highest crime rate among the city-wide seven offenses. "GRAND LARCENY" and "FELONY ASSAULT" appear to have an increasing pattern over the past 10 years.  On the other hand, "ROBBERY","BURGLARY" and "GRAND LARCENY OF MOTOR VEHICLE" have decreased. Both "RAPE" and  "MURDER & NON-NEGL. MANSLAUGHTER" had the smallest rates. "RAPE" has slightly increased whereas "MURDER & NON-NEGL. MANSLAUGHTER"rate has been stable since 2013. 
+
+```{r}
+ggplot(crime, aes(x = Year, y = Rate, colour = Crime, group = Crime)) +
+  geom_line() +
+  scale_y_continuous(breaks=c(0, 50, 5)) +
+  labs(color="7 Crime")
+
+crime_percent <- subset(crime, select = c(Crime, Year, Percent)) %>%
+  spread(Year, Percent) 
+  
+kable(crime_percent)
+```
+
+

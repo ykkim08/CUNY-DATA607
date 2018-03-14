@@ -1,0 +1,188 @@
+---
+title: "Project 2 : Part II"
+author: "YoungKoung Kim"
+date: "March 12, 2018"
+output: html_document
+---
+
+Load library
+```{r message=FALSE}
+library(tidyr)
+library(dplyr)
+library(knitr)
+library(stringr)
+library(ggplot2)
+library(gridExtra)
+```
+
+## Introduction
+The purposes of this project is to transform untidy data to tidy data and to conduct analyses based on the tidy datasets. The project consists of the following three topics. Each topic will include several untidy csv files to analyze.   
+
+* Mass Shootings in America
+
+* Global Suicide Rate
+
+* New York city Historical Crime Rate   
+
+## Global Suicide Rate
+
+### Data
+
+The data were from the WHO Global Burden of Disease. The data were downloaded from Data in Gapminder World https://www.gapminder.org/data/ that Burcu Kaniskan posted in the course discussion board.
+
+The following two files are analyzed for this project. 
+
+* Suicide female indicator file UL 20100916.csv: Include suicide among women, per 100,000 standard population from 1950 to 2004
+
+* Suicide male indicator file UL 20100916.csv: Include suicide among men, per 100,000 standard population from 1950 to 2004
+
+The current analysis focuses on the most recent 5 years of statistics from 2000 to 2004. 
+
+### Questions
+
+The current study aims to address the following questions.
+
+* Q1: Did the global suicide rate increase or decrease from 2000 to 2004? 
+* Q2: Is there a difference in suicide rates between women and men? 
+* Q3: Which country has the highest suicide rate? 
+
+### Create tidy data for analysis
+Here are the example outputs for the two csv files in "wide" format to be used for the analysis. 
+
+```{r}
+women_wide <- read.csv("C:/CUNY/Spring2018/DATA607/project2/topic2/Suicide female indicator file UL 20100916.csv", header= TRUE)
+#select only from 2000 to 2004
+women_wide <- women_wide[, c(1, 52:56)]
+names(women_wide) <- c("Country", "2000", "2001", "2002", "2003", "2004")
+kable(head(women_wide, n = 10))
+
+men_wide <- read.csv("C:/CUNY/Spring2018/DATA607/project2/topic2/Suicide male indicator file UL 20100916.csv", header= TRUE)
+#select only from 2000 to 2004
+men_wide <- men_wide[, c(1, 52:56)]
+names(men_wide) <- c("Country", "2000", "2001", "2002", "2003", "2004")
+kable(head(men_wide, n = 10))
+
+```
+
+Both datasets are transformed in long format. 
+
+
+```{r}
+women <- gather(women_wide, "WomenYear", "Suicide", 2:6)
+women$Year <- str_sub(women$WomenYear, -4, -1)
+women <- subset(women, select = -c(WomenYear))
+women <- arrange(women, Country, Year)
+kable(head(women, n = 10))
+
+men <- gather(men_wide, "MenYear", "Suicide", 2:6)
+men$Year <- str_sub(men$MenYear, -4, -1)
+men <- subset(men, select = -c(MenYear))
+men <- arrange(men, Country, Year)
+kable(head(men, n = 10))
+
+```
+
+Now, they are merged based on "Country" and "Year". This is the final dataset to be used for analysis. 
+
+```{r}
+suicide <- inner_join(women, men, by = c("Country" ="Country", "Year" = "Year"))  %>%
+  rename(Women = Suicide.x, Men = Suicide.y) %>%
+  mutate(Total = Women + Men) %>%
+  select(Country, Year, Women, Men, Total)
+  
+kable(head(suicide, n = 10))
+
+```
+
+### Data analysis
+
+#### Q1: Did global sucide rates increase or decrease from 2000 to 2004? 
+
+Based on the summary statistics, the global suicide rate seems to be similar from 2000 to 2003 and then drops in 2004 for the total group. 
+
+```{r}
+suicide_byYear <- suicide %>%
+  group_by(Year) %>%
+  summarise(mean_total = mean(Total, na.rm = TRUE), mean_women = mean(Women, na.rm = TRUE), mean_men = mean(Men, na.rm = TRUE), n_years = n())
+
+kable(head(suicide_byYear))
+
+ggplot(suicide_byYear, aes(x = Year, y = mean_total, fill = Year)) + 
+  geom_bar(stat = "identity") +
+  ggtitle("Overall Suicide rate from 2000 to 2004") +
+  xlab("Year") + ylab("suicide rate")
+
+```
+
+#### Q2: Is there a difference in sucide rates between women and men? 
+
+The suicide rate for Gender appears to have a different trend. The suicide rate in 2004 was highest for Women whereas the rate in 2004 was the lowest for Men. 
+
+```{r}
+plot_Women <- ggplot(suicide_byYear, aes(x = Year, y = mean_women, fill = Year)) + 
+  geom_bar(stat = "identity") +
+  ggtitle("Female Suicide rates from 2000 to 2004") +
+  xlab("Year") + ylab("suicide rate")
+
+plot_Men <- ggplot(suicide_byYear, aes(x = Year, y = mean_men, fill = Year)) + 
+  geom_bar(stat = "identity") +
+  ggtitle("Male Suicide rate from 2000 to 2004") +
+  xlab("Year") + ylab("suicide rate")
+
+grid.arrange(plot_Women, plot_Men, ncol = 2)
+```
+
+####  Q3: Which contury has the highest sucide rate? 
+
+For the total group, Lithuania has the highest average suicide rate between 2000 and 2004 followed by Guyana and Russia. 
+For Men, Lithuania has the highest suicide rate followed by Russia and Guyana.
+For Women, on the other hand, Guyana has the highest suicide rate followed by Lithuania and Sri Lanka. 
+
+```{r message=FALSE}
+suicide_byCountry <- suicide %>%
+  group_by(Country) %>%
+  summarise(mean_total = mean(Total, na.rm = TRUE), mean_women = mean(Women, na.rm = TRUE), mean_men = mean(Men, na.rm = TRUE)) %>%
+  arrange(desc(mean_total)) 
+
+kable(head(suicide_byCountry, n = 20))
+
+suicide_top10_total <- suicide_byCountry %>%
+  arrange(desc(mean_total)) %>%
+  top_n(10)
+
+suicide_top10_men <- suicide_byCountry %>%
+  arrange(desc(mean_men)) %>%
+  top_n(10)
+
+suicide_top10_women <- suicide_byCountry %>%
+  arrange(desc(mean_women)) %>%
+  top_n(10)
+
+# total group
+ggplot(suicide_top10_total, aes(reorder(Country, mean_total), mean_total, fill = Country)) +
+  ggtitle("Top 10 Countries with Highest Suicide Rate - Total Group") +
+  geom_bar(stat ="identity") +
+  xlab("Country") + ylab("ratio") +
+  coord_flip()+
+  guides(fill=FALSE)
+
+# men
+ggplot(suicide_top10_men, aes(reorder(Country, mean_men), mean_men, fill = Country)) +
+  ggtitle("Top 10 Countries with Highest Suicide Rate - Men") +
+  geom_bar(stat ="identity") +
+  xlab("Country") + ylab("ratio") +
+  coord_flip()+
+  guides(fill=FALSE)
+
+# Women
+ggplot(suicide_top10_women, aes(reorder(Country, mean_women), mean_women, fill = Country)) +
+  ggtitle("Top 10 Country with Highest Suicide Rate - Women") +
+  geom_bar(stat ="identity") +
+  xlab("Country") + ylab("ratio") +
+  coord_flip()+
+  guides(fill=FALSE)
+
+```
+
+
+

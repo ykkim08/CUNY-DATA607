@@ -1,0 +1,195 @@
+---
+title: "Project 2 : Part I"
+author: "YoungKoung Kim"
+date: "March 12, 2018"
+output: html_document
+---
+
+Load library
+```{r message=FALSE}
+library(tidyr)
+library(dplyr)
+library(knitr)
+library(stringr)
+library(ggplot2)
+library(gridExtra)
+```
+
+## Introduction
+The purposes of this project is to transform untidy data to tidy data and to conduct analyses based on the tidy datasets. The project consists of the following three topics. Each topic will include several untidy csv files to analyze.   
+
+* Mass Shootings in America
+
+* Global Suicide Rate
+
+* New York city Historical Crime Rate  
+
+## Mass Shootings in America
+
+### Data
+The data were obtained from the Stanford Mass Shooting in America (MSA) data https://www.kaggle.com/carlosparadis/stanford-msa
+
+This Stanford MSA data contain 307 shooting incidences which occurred in the US from 1966 to 2016. The dataset has very comprehensive information for each case including City, State, Shooter's gender/race/age, Whether the shooter has mental illness, Type of guns, Date of shooting, etc. 
+
+For the purpose of this project, untidy "wide" datasets were created by 1) aggregating the data by State and 2) creating columns for yearly observed variables. There were some duplicate records. The following three wide datasets were created.
+
+* victims_wide.csv: Include the number of victims from 2010 to 2016 
+* case_wide.csv: Include the number of shooting incidents from 2010 to 2016 
+* mental_wide.csv: Include the number of shooting incidents from 2010 to 2016 when shooter had mental illness
+
+### Questions
+The goal of my analysis is to examine what states have the most shooting incidents since 2010 and the relationship between shooting incidents and mental illness based on real data.Specifically, the current study aims to address the following questions.
+
+* Q1: Are massive shooting incidents increasing over the years? 
+* Q2: Overall, Which state has the most shooting incidents?
+* Q3: How often do the shooters have mental illnesses? 
+
+### Create tidy data for analysis
+Here are the example outputs for the three csv files in "wide" format to be used for the analysis. 
+
+```{r}
+victims_wide <- read.csv("C:/CUNY/Spring2018/DATA607/project2/topic1/stanford_msa_victims_wide.csv", header= TRUE)
+kable(head(victims_wide, n = 5))
+
+case_wide <- read.csv("C:/CUNY/Spring2018/DATA607/project2/topic1/stanford_msa_case_wide.csv", header= TRUE)
+kable(head(case_wide, n = 5))
+
+mental_wide <- read.csv("C:/CUNY/Spring2018/DATA607/project2/topic1/stanford_msa_mental_wide.csv", header= TRUE)
+kable(head(mental_wide, n = 5))
+
+```
+
+Each dataset has the same structure. It includes state and multiple columns with the variables of interest for each year. I create tidy datasets by creating columns for Year and the number of cases for each variable.
+
+```{r}
+victims <- gather(victims_wide, "victimsYear", "N_Victims", 2:8)
+victims$Year <- str_sub(victims$victimsYear, -4, -1)
+victims <- subset(victims, select = -c(victimsYear))
+victims <- arrange(victims, state, Year)
+kable(head(victims, n = 10))
+
+case <- gather(case_wide, "caseYear", "N_Case", 2:8)
+case$Year <- str_sub(case$caseYear, -4, -1)
+case <- subset(case, select = -c(caseYear))
+case <- arrange(case, state, Year)
+kable(head(case, n = 10))
+
+mental <- gather(mental_wide, "mentalYear", "N_Mental", 2:8)
+mental$Year <- str_sub(mental$mentalYear, -4, -1)
+mental <- subset(mental, select = -c(mentalYear))
+mental <- arrange(mental, state, Year)
+kable(head(mental, n = 10))
+
+```
+
+Finally, three datasets in "long"" format are combined by state and year.
+
+```{r}
+msa <- inner_join(victims, case, by = c("state" = "state", "Year" = "Year")) %>%
+  inner_join(., mental, by = c("state" = "state", "Year" = "Year")) %>%
+  mutate(VictimPerCase = N_Victims/N_Case, MentalPerCase = N_Mental/N_Case) %>%
+  select(state,	Year,	N_Victims,	N_Case,	N_Mental,VictimPerCase, MentalPerCase)
+#add state abbreviation
+state_abb <- cbind(state.abb, state.name)
+state_abb <- rbind(state_abb, data.frame(state.abb="DC", state.name ="District of Columbia")) %>%
+  arrange(state.abb)
+names(state_abb) <- c("state_abb", "state")
+
+new_msa <- inner_join(msa, state_abb, by =("state" = "state") )
+
+# Excerpt of the final data
+kable(head(msa, n = 10))
+
+```
+
+### Data analysis
+
+Q1: Are massive shooting incidents increasing over the years?
+
+Based on the statistics and histograms below, yes, the number of massive shooting incidents and the number of victims from the shooting incidents have increased since 2010. The number of incidents and victims significantly increased from 2014 to 2015 and 2016.  
+
+```{r}
+msa_byYear <- msa %>%
+  group_by(Year) %>%
+  summarise(mean_victims = mean(N_Victims, na.rm = TRUE), mean_victimspercase = mean(VictimPerCase, na.rm = TRUE), mean_case = mean(N_Case, na.rm = TRUE),  n = n())
+
+kable(msa_byYear)
+
+ggplot(msa_byYear, aes(x = Year, y = mean_case, fill = Year)) + 
+  geom_bar(stat = "identity") +
+  xlab("Year") + ylab("Average number of incidents")
+
+ggplot(msa_byYear, aes(x = Year, y = mean_victims, fill = Year)) + 
+  geom_bar(stat = "identity") +
+  xlab("Year") + ylab("Average number of victims")
+
+
+```
+
+Q2:  Overall, Which state has the most shooting incidents?
+
+The plot of Average number of incidents by State shows that Florida has the largest number of shooting incidents followed by California and Georgia. In terms of the number of victims, California was the highest followed by Colorado and Florida. 
+
+```{r}
+
+msa_byState <- new_msa %>%
+  group_by(state_abb) %>%
+  summarise(mean_victims = mean(N_Victims), mean_case = mean(N_Case), n_years = n())
+
+# Order by average number of incidents 
+ggplot(msa_byState , aes(reorder(state_abb, mean_case), mean_case, fill = state_abb)) +
+  ggtitle("Average number of incidents") +
+  geom_bar(stat ="identity") +
+  xlab("State") + ylab("number of cases") +
+  coord_flip()+
+  guides(fill=FALSE)
+
+# Order by average number of victims 
+ggplot(msa_byState , aes(reorder(state_abb, mean_victims), mean_victims, fill = state_abb)) +
+  ggtitle("Average number of vicitms") +
+  geom_bar(stat ="identity") +
+  xlab("State") + ylab("number of cases") +
+  coord_flip()+
+  guides(fill=FALSE)
+
+
+```
+
+Q3: How often do the shooters have mental illnesses? 
+
+To address this question, I examine two variables - the average number of incidents where the shooters had mental illnesses and the average number of mental illnesses cases per shooting incident.  
+
+```{r}
+msa_byMental <- msa %>%
+  group_by(Year) %>%
+  summarise(mean_mentalpercase = mean(MentalPerCase, na.rm = TRUE), mean_mentalCase = mean(N_Mental, na.rm = TRUE), n = n())
+
+kable(msa_byMental)
+```
+
+Overall, the average numbers of incidents where the shooters had mental illnesses were small and similar across all 7 years. In 2010, there was no case where the shooter had mental illness. 
+
+```{r}
+ggplot(msa_byMental, aes(x = Year, y = mean_mentalCase, fill = Year)) + 
+  ggtitle("Average number of shooters with mental illness") +
+  geom_bar(stat = "identity") +
+  xlab("Year") + ylab("number of cases")
+```
+
+The plots below shows that the average ratio of shooters with mental illnesses per case becomes smaller whereas the number of shooting cases noticeably increased in 2015 and 2016. The results indicate that the shooting incidents related to mental illnesses take up only the small portion of the shooting incidents that occurred recently (2015-2016).    
+
+```{r}
+plot_byMentalRatio <- ggplot(msa_byMental, aes(x = Year, y = mean_mentalpercase, fill = Year)) + 
+  ggtitle("Metnal illness per case") +
+  geom_bar(stat = "identity") +
+  xlab("Year") + ylab("number per case")
+
+plot_byCases <-ggplot(msa_byYear, aes(x = Year, y = mean_case, fill = Year)) + 
+  ggtitle("Average number of cases") +
+  geom_bar(stat = "identity") +
+  xlab("Year")  + ylab("number case")
+
+grid.arrange(plot_byMentalRatio, plot_byCases, ncol = 2)
+
+```
+
