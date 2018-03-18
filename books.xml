@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<books>
+<book id = "1">
+    <title>The Vegetarian</title>
+    <author>Han Kang</author>
+    <year>2007</year>
+    <genre>Contemporary fiction</genre>
+    <language>Korean</language>
+    <page>160</page>
+</book>
+<book id = "2">
+    <title>One Hundred Years of Solitude</title>
+    <author>Gabriel Garcia Marquez </author>
+    <year>1967</year>
+    <genre>Magic realism</genre>
+    <language>Spanish</language>
+    <page>422</page>    
+</book>
+<book id = "3">
+    <title>Norwegian Wood</title>
+    <author>Haruki Murakami</author>
+    <year>1987</year>
+    <genre>Coming of age novel</genre>
+    <language>Japanese</language>
+    <page>296</page>    
+</book>
+</books>
+
+
