@@ -1,0 +1,9 @@
+{
+    "Title": ["The Vegetarian", "One Hundred Years of Solitude", "Norwegian Wood"],
+    "Author": ["Han Kang", "Gabriel Garcia Marquez", "Haruki Murakami"],
+    "Year" : ["2007", "1967", "1987"],
+    "Genre": ["Contemporary fiction", "Maic realism", "Coming of age novel"],
+    "Language": ["Korean", "Spanish", "Japanese"],
+    "Page": ["160", "422", "296"]
+
+}
