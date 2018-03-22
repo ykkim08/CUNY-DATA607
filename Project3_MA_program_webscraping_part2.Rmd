@@ -1,0 +1,165 @@
+---
+title: "Project3_MADS_part2"
+author: "YoungKoung Kim"
+date: "March 22, 2018"
+output: html_document
+---
+
+```{r}
+library(rvest)
+library(stringr)
+library(XML)
+library(dplyr)
+library(stringr)
+library(tidyr)
+```
+
+#### NYU
+```{r}
+nyu <- read_html("http://www.stern.nyu.edu/programs-admissions/ms-business-analytics/academics/course-index")
+nyu.Description <- nyu %>%
+  html_nodes("#region-2 :nth-child(2) .content") %>%
+  html_text()  %>%
+  str_replace_all("[\r\n]" , " ") %>%
+  str_replace_all("Module I: NYU Stern - New York", "  ") %>%
+  str_replace_all("Module II: London", "  ") %>%
+  str_replace_all("Module III: NYU Shanghai - Shanghai", "  ") %>%
+  str_replace_all("Module IV: NYU Stern - New York", " ") %>%
+  str_replace_all("Module V: NYU Stern - New York", " ") %>%
+  str_split("Course description:|Strategic Capstone") %>%
+  data.frame(stringsAsFactors=FALSE)
+
+
+title <- html_nodes(nyu, "strong") %>%
+  html_text()
+
+previous <- html_nodes(nyu, "em") %>%
+  html_text() 
+
+# Remove course title 
+for(i in 2:16)
+{ 
+  d <- nyu.Description[i, ] %>%
+    str_replace_all(title[i], "  ") 
+    nyu.Description[i, ] <- d
+}
+# Remove <em> field
+for(i in 2:14)
+{ 
+  d <- nyu.Description[i, ] %>%
+    str_replace_all(previous[i], "  ") 
+  nyu.Description[i, ] <- d
+}
+
+
+nyu.Description <- nyu.Description[2:16, ]
+title <- data.frame(title[1:15])
+colnames(title) <- "Name"
+School <- "New York University"
+Program <- "Master of Science in Business Analytics"
+
+nyu.class <- cbind(School, Program, title, nyu.Description)
+colnames(nyu.class)[4] <- "Description"
+nyu.class 
+```
+
+```{r}
+umuc <- read_html("http://www.umuc.edu/academic-programs/masters-degrees/data-analytics.cfm")
+umuc.class<- html_nodes(umuc, "div.course-popup") %>%
+  html_text() %>%
+  data.frame()
+umuc.class<- umuc.class %>%
+  separate(colnames(umuc.class[1]), c("fill","Name", "CodeCredits", "Description"), sep = "\\t") %>%
+  separate(CodeCredits, c("Code", "Credits"), sep = "\\|")
+
+umuc.class$fill <- NULL
+
+School <- "University of Maryland University College"
+Program <- "Master of Science in Data Analytics"
+
+umuc.class <- cbind(School, Program, umuc.class)
+umuc.class
+```
+
+#### Duke
+```{r}
+duke <- read_html("https://www.fuqua.duke.edu/programs/mqm-business-analytics/curriculum")
+duke.class.Name <-html_nodes(duke, ".accordion_item_content strong") %>%
+  html_text() %>%
+  data.frame()
+colnames(duke.class.Name) <- "Name"
+duke.Description <-html_nodes(duke, ".accordion_item_content p") %>%
+  html_text() %>%
+  data.frame()
+duke.Description <- duke.Description[2:28, ] 
+
+School <- "Duke University"
+Program <- "Master of Quantitative Management Business Analytics"
+
+duke.class <- cbind(School, Program, duke.class.Name, duke.Description)
+colnames(duke.class)[4] <- "Description"
+
+duke.class
+```
+
+#### Berkeley
+```{r}
+berkeley <- read_html("https://www.ischool.berkeley.edu/courses/datasci")
+berkeley.class.Name <-html_nodes(berkeley, ".course-title a") %>%
+  html_text() %>%
+  data.frame()
+colnames(berkeley.class.Name) <- "Name"
+berkeley.Description <-html_nodes(berkeley, ".views-field-field-course-catalog-description .field-content ") %>%
+  html_text() %>%
+  data.frame()
+
+School <- "Berkeley University"
+Program <- "Master of Information and Data Science"
+
+berkeley.class <- cbind(School, Program, berkeley.class.Name, berkeley.Description)
+colnames(berkeley.class)[4] <- "Description"
+
+berkeley.class
+
+```
+
+#### Texas A&M
+```{r}
+txam <- read_html("https://analytics.stat.tamu.edu/for-students-2/")
+txam.class.Name <-html_nodes(txam, "h4 a") %>%
+  html_text() %>%
+  str_replace_all("[\r\n\t]" , "") %>%
+  data.frame()
+
+txam.class.Name <- txam.class.Name  %>%
+  separate(colnames(txam.class.Name [1]), c("Name","Credits"), sep = '\\(', extra = "merge")
+
+txam.class.Name$Credits <- str_replace(txam.class.Name$Credits, "\\)", " ")
+
+txam.Description1 <-html_nodes(txam, "h4") %>%
+  html_text() %>%
+  data.frame()
+# select odd rows in addition to rows 2 and 42
+txam.Description <- txam.Description1[c(2, seq(1, nrow(txam.Description1), 2), 42),] 
+txam.Description <- txam.Description[-c(2, 3, 22)]
+
+School <- "Texas A&M University"
+Program <- "Master of Science Analytics"
+
+txam.class <- cbind(School, Program, txam.class.Name, txam.Description)
+colnames(txam.class)[5] <- "Description"
+
+txam.class
+
+```
+
+#### Combine Shools
+```{r}
+MSDSprogram <- bind_rows(nyu.class, umuc.class, berkeley.class, duke.class, txam.class)
+write.csv(MSDSprogram, file = "H:/DataScience/CUNY/Spring2018/DATA607/project3/MA_DS_part2.csv")
+```
+
+
+
+
+
