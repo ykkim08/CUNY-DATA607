@@ -1,0 +1,36 @@
+---
+title: "Week9_Assignment"
+author: "YoungKoung Kim"
+date: "March 30, 2018"
+output: html_document
+---
+
+#### Load Library 
+```{r}
+library(httr)
+library(tidyr)
+library(jsonlite)
+```
+
+#### NY Times Top Stories API
+Read JSON data and transform it to an R dataframe
+```{r}
+url <- "https://api.nytimes.com/svc/topstories/v2/home.json"
+
+NYTimes_TopStories_Raw <- GET(url, query = list(api_key = "a437b470d7c240f2bf82a9a24fefeadc"))
+NYTimes_TopStories_Raw
+
+NYTimes_TopStories <- fromJSON("https://api.nytimes.com/svc/topstories/v2/home.json?api_key=a437b470d7c240f2bf82a9a24fefeadc") %>%
+  data.frame()
+
+names(NYTimes_TopStories)
+```
+
+#### NY Times Top Stories in Food Section!
+
+```{r}
+food_TopStory <-NYTimes_TopStories[which(NYTimes_TopStories$results.section == 'Food'), ]
+food_TopStory$results.title
+food_TopStory$results.abstract
+
+```
