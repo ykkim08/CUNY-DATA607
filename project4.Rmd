@@ -1,0 +1,164 @@
+---
+title: "Project4"
+author: "YoungKoung Kim"
+date: "April 14, 2018"
+output: html_document
+---
+
+### Introduction
+For Project 4, I downloaded spam and ham files from  https://spamassassin.apache.org/old/publiccorpus/
+To predict the class of new document,I will build a spam filter using Naive Bayes Classifier and evaluate the performance of the spam filter. For this part, I used 
+https://www3.nd.edu/~steve/computing_with_data/20_text_mining/text_mining_example.html#/1
+as the main reference.  
+
+### Required Libaray
+```{r warning = FALSE, message = FALSE}
+library(tm)
+library(dplyr)
+library(wordcloud)
+library(stringr)
+library(e1071) ## Naive Bayes classifier
+```
+
+### Read spam files and create data frame
+
+```{r}
+spam_dir <- "C:/CUNY/Spring2018/DATA607/project4/spam_ham/spam_2/"
+spam_fileNames <- list.files(spam_dir)
+spam_docs <-NA
+for (i in 1:length(spam_fileNames)) {
+  text<- readLines(str_c(spam_dir, spam_fileNames[i]))
+  text<- str_c(text, collapse = "")
+  spam_docs<- c(spam_docs, text)
+}
+spam<-as.data.frame(unlist(spam_docs),stringsAsFactors = FALSE)
+spam$type <- "spam"
+colnames(spam) <- c("text", "type")
+
+
+ham_dir <- "C:/CUNY/Spring2018/DATA607/project4/spam_ham/easy_ham/"
+ham_fileNames <- list.files(ham_dir)
+
+ham_docs <-NA
+for (i in 1:length(ham_fileNames)) {
+  text<- readLines(str_c(ham_dir, ham_fileNames[i]))
+  text<- str_c(text, collapse = "")
+  ham_docs<- c(ham_docs, text)
+}
+ham<-as.data.frame(unlist(ham_docs),stringsAsFactors = FALSE)
+ham$type <- "ham"
+colnames(ham) <- c("text", "type")
+
+# Combine spam and ham
+all <- rbind(spam, ham)
+
+```
+
+### Create corpus, clean it up and create document term matrix 
+
+```{r}
+all_corpus <- Corpus(VectorSource(all$text))
+all_corpus <- all_corpus %>%
+  tm_map(content_transformer(str_replace_all), pattern = "[[:punct:]]", replacement = " ") %>%
+  tm_map(removeNumbers) %>%
+  tm_map(removePunctuation) %>%
+  tm_map(removeWords, words = stopwords("english")) %>%
+  tm_map(tolower) %>%
+  tm_map(stripWhitespace) 
+all_dtm <- DocumentTermMatrix(all_corpus)
+
+# Remove sparse terms
+all_dtm <- removeSparseTerms(all_dtm, 1-(10/length(all_corpus)))
+
+```
+
+### Examine word cloud
+```{r}
+spam_index <- which(all$type == "spam")
+ham_index <- which(all$type == "ham")
+# Word Cloud: Spam
+wordcloud(all_corpus[spam_index], max.words=100, random.order=FALSE,  scale=c(4, .2), colors=brewer.pal(8, "Dark2"))
+# Word Cloud: Ham
+wordcloud(all_corpus[ham_index], max.words=100, random.order=FALSE,  scale=c(3, .2), colors=brewer.pal(8, "Dark2"))
+
+```
+
+### Divid corpus into traiing and test data for classification 
+
+To model the classification, the following steps are used
+* Step1: Divide data to 75% training data and 25 test data
+* Step2: Create dictionary using frequent words 
+* Step3: Create a Naive Bayes classifier object
+* Step4: Evaluate the classifier using the test data 
+
+#### Step1: Divide corpus into traiing and test data for classification 
+
+```{r}
+#### 75% of the train data 25% of test data
+test_data_size <- floor(0.75 * nrow(all))
+
+set.seed(1234)
+train_ind <- sample(seq_len(nrow(all)), size = test_data_size)
+
+raw_train <- all[train_ind, ]
+raw_test <- all[-train_ind, ]
+
+dtm_train <- all_dtm[train_ind, ]
+dtm_test <- all_dtm[-train_ind, ]
+
+corpus_train <- all_corpus[train_ind]
+corpus_test <- all_corpus[-train_ind]
+
+
+spam_train <- subset(raw_train, type == "spam")
+ham_train <- subset(raw_train, type == "ham")
+
+
+```
+
+#### Step2
+##### Identify words that appear at least 5 times and Create dictionary using frequent words 
+
+```{r}
+five_times_words <- findFreqTerms(dtm_train, 5)
+length(five_times_words)
+five_times_words[1:5]
+
+sms_train <- DocumentTermMatrix(corpus_train, control=list(dictionary = five_times_words))
+sms_test <- DocumentTermMatrix(corpus_test, control=list(dictionary = five_times_words))
+```
+
+##### Convert dictionary matrices
+```{r}
+convert_count <- function(x) {
+  y <- ifelse(x > 0, 1,0)
+  y <- factor(y, levels=c(0,1), labels=c("No", "Yes"))
+  y
+}
+
+sms_train <-apply(sms_train, 2, convert_count)
+sms_test <-apply(sms_test, 2, convert_count)
+```
+
+#### Step3: Create a Naive Bayes classifier object and evaluate the performance on the test data
+
+```{r}
+sms_classifier <- naiveBayes(sms_train, factor(raw_train$type))
+class(sms_classifier)
+
+sms_test_pred <- predict(sms_classifier, newdata=sms_test)
+results <- addmargins(table(sms_test_pred, raw_test$type), 1)
+results
+
+```
+
+### Results
+
+Using the spam filter based on a Naive Bayes classifier, 
+99.7% (641 out of 643) Correctly classified the ham
+94.9% (315 out of 332) Correctly classified the spam
+
+### Reference
+
+https://www3.nd.edu/~steve/computing_with_data/20_text_mining/text_mining_example.html#/1
+
