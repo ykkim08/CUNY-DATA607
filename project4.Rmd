@@ -7,11 +7,11 @@ output: html_document
 
 ### Introduction
 For Project 4, I downloaded spam and ham files from  https://spamassassin.apache.org/old/publiccorpus/
-To predict the class of new document,I will build a spam filter using Naive Bayes Classifier and evaluate the performance of the spam filter. For this part, I used 
+To predict the class of new document, I will build a spam filter using Naive Bayes Classifier and evaluate the performance of the spam filter. For this part, I used 
 https://www3.nd.edu/~steve/computing_with_data/20_text_mining/text_mining_example.html#/1
 as the main reference.  
 
-### Required Libaray
+### Required Library
 ```{r warning = FALSE, message = FALSE}
 library(tm)
 library(dplyr)
@@ -83,7 +83,7 @@ wordcloud(all_corpus[ham_index], max.words=100, random.order=FALSE,  scale=c(3, 
 
 ```
 
-### Divid corpus into traiing and test data for classification 
+### Divide corpus into training and test data for classification 
 
 To model the classification, the following steps are used
 * Step1: Divide data to 75% training data and 25 test data
@@ -91,7 +91,7 @@ To model the classification, the following steps are used
 * Step3: Create a Naive Bayes classifier object
 * Step4: Evaluate the classifier using the test data 
 
-#### Step1: Divide corpus into traiing and test data for classification 
+#### Step1: Divide corpus into training and test data for classification 
 
 ```{r}
 #### 75% of the train data 25% of test data
