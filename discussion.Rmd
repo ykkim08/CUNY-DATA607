@@ -1,0 +1,31 @@
+---
+title: "Discussion_Week12"
+author: "YoungKoung Kim"
+date: "April 19, 2018"
+output: html_document
+---
+
+###Target Users
+
+BestBuy.com's main target users are the consumers who want to buy electronic products.
+
+###Key Goals
+
+The goals of the company are to improve the customer experience and thus increase their revenues.
+
+ 
+###How can you help them accomplish those goals?
+
+Since 2015, Best Buy has been using a recommendation system for online sales in an attempt to predict what customers are interested in. In 2016, CNBC reported Best Buy's market growth during its second fiscal quarter to be almost 24 percent. 
+
+I found a case study that I reverse engineered to identify BestBuy's recommender system (http://cs229.stanford.edu/proj2012/RajendraDewanColakoglu-BestBuyRecommendationSystem.pdf) . They developed a simple recommender system for recommending Xbox games based on a given query. In particular, the study examined collaborative filtering (the query-based as well as item-to-item collaborative filtering) and clustering (query clustering and item clustering). They found that collaborative filtering for queries and items performed similarly and query based clustering performed slightly better. Item based clustering did not perform very well.
+
+To improve the recommender system, I wonder if there is a way to include customer ratings in collaborative filtering or clustering models. I think information about customer's ratings on products that were previously purchased will be very useful to predict what other products they would like for their next purchase.
+
+###Reference
+
+https://www.techemergence.com/use-cases-recommendation-systems/
+
+https://www.cnbc.com/2016/08/23/best-buys-surge-in-online-sales-shows-it-wont-be-toppled-by-amazon.html
+
+ 
