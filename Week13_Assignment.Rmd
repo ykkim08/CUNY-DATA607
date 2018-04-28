@@ -1,0 +1,118 @@
+---
+title: "Week13_Assignment"
+author: "YoungKoung Kim"
+date: "April 27, 2018"
+output: html_document
+---
+
+
+```{r echo = FALSE, results='hide', message=FALSE, warning=FALSE}
+mypw <- "XXXXX"
+##install.packages("RMySQL")
+##install.packages("htmlTable")
+#install.packages("mongolite")
+
+library(RMySQL)
+library(htmlTable)
+library(knitr)
+library(mongolite)
+
+
+```
+
+### SQL to R dataframe 
+
+Connect SQL flight database and create r data frame  
+
+```{r warning=FALSE}
+mydb = dbConnect(MySQL(), user = 'root', password = mypw,  dbname='flights', host='localhost')
+#list of tables in the movies database
+dbListTables(mydb)
+
+
+
+airlines <- dbGetQuery(mydb, "SELECT * FROM airlines")
+airports <- dbGetQuery(mydb,"SELECT * FROM airports;")
+flights <- dbGetQuery(mydb,"SELECT * FROM flights;")
+planes <- dbGetQuery(mydb,"SELECT * FROM planes;")
+weather <-dbGetQuery(mydb,"SELECT * FROM weather;")
+
+dbDisconnect(mydb) 
+
+```
+
+### MongoDB
+
+#### Connect to MongoDB and Insert r dataframe to MongoDB
+
+
+```{r}
+# airlines
+mongo_airlines  <- mongo(collection = "airlines", db= "flights", url = "mongodb://localhost")
+mongo_airlines$drop()
+mongo_airlines$insert(airlines)
+
+
+# airports
+mongo_airports  <- mongo(collection = "airports", db= "flights", url = "mongodb://localhost")
+mongo_airports$drop()
+mongo_airports$insert(airports)
+
+
+# flights
+mongo_flights  <- mongo(collection = "flights", db= "flights", url = "mongodb://localhost")
+mongo_flights$drop()
+mongo_flights$insert(flights)
+
+# planes
+mongo_planes  <- mongo(collection = "planes", db= "flights", url = "mongodb://localhost")
+mongo_planes$drop()
+mongo_planes$insert(planes)
+
+# weather
+mongo_weather  <- mongo(collection = "weather", db= "flights", url = "mongodb://localhost")
+mongo_weather$drop()
+mongo_weather$insert(weather)
+
+
+```
+
+#### Check the number of documents in MongoDB
+
+```{r}
+mongo_airlines$count()
+mongo_airports$count()
+mongo_flights$count()
+mongo_planes$count()
+mongo_weather$count()
+```
+
+#### Print out tables 
+```{r}
+
+kable(head(mongo_airlines$find()))
+kable(head(mongo_airports$find()))
+kable(head(mongo_flights$find()))
+kable(head(mongo_planes$find()))
+kable(head(mongo_weather$find()))
+```
+
+### Advantages and Disadvantages NoSQL database
+
+#### Advantages
+* NoSQL databases are non-relational and thus they are easier to manage and they provide a higher level of flexibility with newer data models.
+* NoSQL databases are mostly Open Source and Low-Cost. They make rapid processing of real-time Big Data applications affordable.
+* NoSQL databases have easier scalability through support for Map Reduce
+* NoSQL databases do not need to develop a detailed database model. The non-relational nature of a NoSQL database allows database architects to quickly create a database without needing to develop a detailed (fine-grained) database model. This saves a lot of development time. 
+Disadvantages
+
+#### Disadvantages 
+* While its continuing to grow rapidly, the NoSQL community is relatively new and lacks the maturity of the MySQL user base. 
+* A major problem with NoSQL databases is the lack of reporting tools for analysis and performance testing. However, with MySQL, you can find a wide array of reporting tools to help you prove your application's validity. 
+* NoSQL databases lack standardization and they need a standard query language like SQL. 
+
+#### Reference
+http://www.monitis.com/blog/cc-in-review-the-key-differences-between-sql-and-nosql-dbs/
+
+
+
