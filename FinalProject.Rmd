@@ -1,0 +1,332 @@
+---
+title: "FinalProject"
+author: "YoungKoung Kim"
+date: "May 12, 2018"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 4  
+    theme: paper  # "default", "cerulean", "journal", "flatly", "readable", "spacelab", "united", "cosmo", "lumen", "paper", "sandstone", "simplex", "yeti"
+    highlight: pygments
+editor_options: 
+  chunk_output_type: console
+---
+
+## Introduction
+
+Our daily decisions are very often made based on information from websites. When we try to purchase a product (for example, booking a hotel, purchasing movie tickets and buying a house etc.), we first check the reviews and ratings on the product and then make a decision. The reviews by previous customers and ratings by professionals of the product play critical roles in the decision process of customers.
+
+The goal of this project is to examine the relationship between the ratings by professionals and the reviews by actual customers. In particular, this study examines the relationship between the grades of NYC restaurants by the Department of Health and Mental Hygiene (DOHMH) and the reviews by customers.
+
+For the data source, the DOHMH New York City Restaurant Inspection Results data are used (https://data.cityofnewyork.us/Health/DOHMH-New-York-City-Restaurant-Inspection-Results/43nn-pn8j)
+
+The impacts of several factors, the cuisine type, location and number of claims on the restaurant letter grades will be examined first. The restaurants that were most frequently inspected were selected for the analysis on the customer reviews. The customer reviews on these restaurants are scraped from Yelp (https://www.yelp.com/) to conduct a sentiment analysis. The sentiment analysis of customer reviews are used to examine how accurately the customer reviews can classify A level restaurants.
+
+## Required Libaray
+
+```{r warning = FALSE, message = FALSE}
+library(tidyverse)
+library(tidytext)
+library(knitr)
+library(stringr)
+library(ggplot2)
+library(rvest)
+library(XML)
+```
+
+## DOHMH data
+The dataset by the Department of Health and Mental Hygiene (DOHMH) provides restaurant inspections, violations, grades and adjudication. The restaurants that have missing letter grade are excluded in this analysis. 
+
+```{r}
+
+nyc_resturant_data<-read.csv("C:/CUNY/Spring2018/DATA607/final_project/nyc_data.csv", na.strings = c("", "NA"))
+
+# Select only the resturants with Grade
+nyc_resturant <- nyc_resturant_data %>%
+  na.omit()
+
+kable(head(nyc_resturant))
+
+```
+
+### Letter Grade
+A letter grade of 'A' indicates that a restaurant received 13 or fewer health code violations in their last inspection. Any recorded violations are likely to be technicalities or non-critical infractions, such as "Non-food contact surface improperly constructed;" "Lighting inadequate;" or "Canned food product observed severely dented."
+
+A letter grade of 'B' indicates 14 to 27 recorded violations at the restaurant. The majority of NYC restaurants currently fall into this category. At this level some of the violations are noted as 'Critical' by the Department of Health-common Critical violations include "Cold food held above 41°F (smoked fish above 38°F) except during necessary preparation;" and "Sanitized equipment or utensil...improperly used or stored."
+
+A letter grade of 'C' indicates more than 28 health code violations. This is when things start to get pretty gross-and possibly dangerous. For instance, sanitation violations at this level sound like "Evidence of mice or live mice present in facility's food and/or non-food areas;" "Hand washing facility not provided in or near food preparation area and toilet room;" or "Food item spoiled, adulterated, contaminated or cross-contaminated." 
+
+If a restaurant receives a B or C grade, they will be re-inspected after a month's grace period. After the second inspection they must post the grade or appeal the results, in which case they can then place a "Grade Pending" placard in the window to indicate an incomplete inspection process.
+
+### Score By Grade
+First, the average scores by grade were examined. The average scores were consistent with the definitions of letter grades discussed earlier. The current study mainly focuses on the restaurants that received grades of A, B or C. 
+
+```{r}
+total_n <- nrow(nyc_resturant)
+total_A <-length(which(nyc_resturant$GRADE == 'A'))
+total_B <-length(which(nyc_resturant$GRADE == 'B'))
+total_C <-length(which(nyc_resturant$GRADE == 'C'))
+
+nyc_resturant %>%
+  group_by(GRADE) %>%
+  summarise(mean_score = mean(SCORE), n_unique = n_distinct(DBA), n = n()) %>%
+  ggplot(aes(x = GRADE, y = mean_score, fill = GRADE)) + 
+  geom_bar(stat = "identity") +
+  xlab("Grade") + ylab("Average Score")
+
+```
+
+### Score by Cuisine
+
+For the restaurants with letter grade A, American restaurants had the highest frequency followed by Chinese, Italian, Cafe/Coffee/Tea and Pizza.  
+
+For the restaurants with letter grade B, American restaurants had the highest frequency followed by Chinese, Latin, Pizza and Caribbean.
+
+For the restaurants with letter grade C, American restaurants had the highest frequency followed by Chinese, Latin, Mexican and Caribbean.  
+
+
+```{r fig.width=20,fig.height=11}
+n_grade <- nyc_resturant %>%
+  subset(GRADE == 'A'|GRADE == 'B'|GRADE == 'C' ) %>%
+  group_by(GRADE) %>%
+  summarise(n_grade = n())
+
+nyc_resturant %>%
+  subset(GRADE == 'A'|GRADE == 'B'|GRADE == 'C' ) %>%
+  group_by(GRADE, CUISINE.DESCRIPTION) %>%
+  summarise(mean_score = mean(SCORE), n_unique = n_distinct(DBA), n = n()) %>%
+  inner_join(n_grade, by = "GRADE") %>%
+  mutate(percent = 100*n /n_grade) %>%
+  arrange(GRADE) %>%
+  top_n(5) %>%
+  ggplot(aes(x = CUISINE.DESCRIPTION, y = percent, fill = CUISINE.DESCRIPTION)) + 
+  geom_bar(stat = 'identity') +
+  coord_flip() +
+  xlab("Cuisine") + ylab("% Resturant") +
+  facet_wrap(~ GRADE) 
+```
+
+### Score by Boro
+In terms of locations, Manhattan has the highest frequency followed by Brooklyn, Queens, Bronx and Staten Island for the restaurants received letter grad of A, B or C.  
+
+```{r fig.width=20}
+nyc_resturant %>%
+  subset(GRADE == 'A'|GRADE == 'B'|GRADE == 'C' ) %>%
+  group_by(GRADE, BORO) %>%
+  summarise(mean_score = mean(SCORE), n_unique = n_distinct(DBA), n = n()) %>%
+  mutate(percent = 100*n /total_n) %>%
+  ggplot(aes(x = BORO, y = percent, fill = BORO)) + 
+  facet_wrap(~ GRADE) +
+  geom_bar(stat = "identity") +
+  xlab("Grade") + ylab("% Resturants")
+
+```
+
+### Top 25 resturants
+To analyze the relationship between customers' ratings and reviews, top 25 restaurants, which were inspected most frequently, were selected.
+
+```{r}
+nyc_resturant_group <- nyc_resturant %>%
+  group_by(DBA, BORO, BUILDING, STREET, GRADE) %>%
+  summarise(n = n()) %>%
+  arrange(desc(n)) %>%
+  filter(row_number() == 1)
+
+top25 <- nyc_resturant_group %>%
+  head(n = 25) %>%
+  arrange(GRADE)
+
+kable(top25)
+
+```
+
+
+## Customer Reviews
+The second part of this project is to examine the relationship between customers' ratings and reviews. The restaurants identified from the first part of the project.The customer reviews on these restaurants are scraped from Yelp.com. Restaurants with fewer than 5 reviews were not included in the analysis.   
+
+### Yelp Review Scrape
+
+First, a function that scrapes the customers' review from Yelp.com was written and then reviews on the restaurants were scraped. The collected reviews were saved in a csv file.   
+```{r}
+
+YelpScrape <- function(id, resturant_name, html_address)
+{
+  x <- read_html(html_address)
+  review <- html_nodes(x, ".review-content p") %>%
+    html_text() %>%
+    data.frame()
+  review <- data.frame(lapply(review, as.character), stringsAsFactors=FALSE)
+  
+  rating <- html_nodes(x, ".review-content .rating-large") %>%
+    html_attr("title") %>%
+    data.frame()
+  
+  id <- id
+  resturant <- resturant_name
+  colnames(rating) <- "starRating"
+  colnames(review) <- "review"
+  return(data.frame(id, resturant, rating, review))
+  
+}
+
+AnkaGrill <- YelpScrape(1, "Anka Grill", "https://www.yelp.com/biz/anka-grill-new-york-2?osq=ANKA+GRILL")
+AsianJewels<- YelpScrape(2, "Asian Jewls Seafood", "https://www.yelp.com/biz/asian-jewels-seafood-restaurant-flushing-2")
+Aubonpain <-  YelpScrape(3, "Au Bon Pain", "https://www.yelp.com/biz/au-bon-pain-queens?osq=AU+BON+PAIN")
+AuntieAnne <- YelpScrape(4, "Auntie Anne Pretzels", "https://www.yelp.com/biz/auntie-annes-flushing-2?osq=AUNTIE+ANNE%27S+PRETZELS")
+BoSing <- YelpScrape(5, "Bo Sing Bakery", "https://www.yelp.com/biz/bo-sing-bakery-brooklyn-2?osq=B+BO+SING+BAKERY")
+BigWong <-YelpScrape(6, "Big Wong", "https://www.yelp.com/biz/big-wong-new-york?osq=BIG+WONG+RESTAURANT")
+BostonJerkCity<-YelpScrape(7, "Boston Jerk City", "https://www.yelp.com/biz/boston-jerk-city-restaurant-brooklyn")
+Chachantang <-YelpScrape(8, "Cha Chan Tang", "https://www.yelp.com/biz/cha-chan-tang-new-york?osq=CHA+CHAN+TANG")
+FLH <- YelpScrape(9, "FLH Seafood", "https://www.yelp.com/biz/flh-seafood-bath-beach?osq=F.L.H.+SEAFOOD+RESTAURANT")
+Gangsandeul <- YelpScrape(10, "Gang San Deul", "https://www.yelp.com/biz/gangsandeul-korean-bbq-little-neck")
+GreatNYNoodle <- YelpScrape(11, "Great NY Noodle Town", "https://www.yelp.com/biz/great-ny-noodle-town-new-york?osq=GREAT+N.Y.+NOODLETOWN")
+JJNoodle <- YelpScrape(12, "J J Noodle Resturant", "https://www.yelp.com/biz/j-j-noodle-restaurant-new-york?osq=J+J+NOODLE")
+JGMelon <- YelpScrape(13, "JG Melon", "https://www.yelp.com/biz/jg-melon-new-york-5")
+LaVieEnSzechuan<- YelpScrape(14, "La Vie En Szechuan", "https://www.yelp.com/biz/la-vie-en-szechuan-new-york-2?osq=A+VIE+EN+SZECHUAN")
+Madangsui <- YelpScrape(15, "Madangsui", "https://www.yelp.com/biz/madangsui-new-york?osq=MADANGSUI")
+MaxBakery <- YelpScrape(16, "Max Bakery", "https://www.yelp.com/biz/max-bakery-and-restaurant-jackson-heights?osq=MAX+BAKERY+%26+RESTAURANT")
+MunchTime <- YelpScrape(17, "Munch Time Diner", "https://www.yelp.com/biz/munch-time-diner-bronx?osq=MUNCH+TIME+DINER")
+OrchidDynasty <- YelpScrape(18, "Orchid Dynasty", "https://www.yelp.com/biz/orchid-dynasty-bensonhurst?osq=ORCHID+DYNASTY+RESTAURANT")
+SavourSichuan <- YelpScrape(19, "Savour Sichuan", "https://www.yelp.com/biz/savour-sichuan-new-york?osq=SAVOUR+SICHUAN")
+Sheraton <- YelpScrape(20, "Sheraton", "https://www.yelp.com/biz/sheraton-new-york-hotel-and-towers-new-york-2")
+TotalAmazingGrace <- YelpScrape(21, "Total Amazing Grace", "https://www.yelp.com/biz/grace-before-meals-roti-shop-brooklyn")
+XingWong<- YelpScrape(22, "Xing Wong", "https://www.yelp.com/biz/xing-wong-bbq-new-york?osq=XING+WONG+BBQ")
+YeeLi <- YelpScrape(23, "Yee Li", "https://www.yelp.com/biz/yee-li-restaurant-new-york?osq=YEE+LI+RESTAURANT")
+YoSushi <- YelpScrape(24, "Yo Sushi", "https://www.yelp.com/biz/yo-sushi-new-york-3?osq=YO+SUSHI")
+Yolie <- YelpScrape(25, "Yolies Resturant",  "https://www.yelp.com/biz/yolies-caribbean-restaurant-brooklyn?osq=YOLIE%27S")
+
+yelpReviews <- rbind(AnkaGrill, AsianJewels, Aubonpain, AuntieAnne, BoSing , BigWong , BostonJerkCity, Chachantang , FLH , Gangsandeul, GreatNYNoodle, 
+                     JJNoodle , JGMelon , LaVieEnSzechuan, Madangsui, MaxBakery, MunchTime , OrchidDynasty, 
+                     SavourSichuan , Sheraton , TotalAmazingGrace, XingWong, YeeLi , YoSushi, Yolie )
+write.csv(yelpReviews, "C:/yelpReviews.csv")
+
+```
+
+
+### Sentiment analysis
+Once the customer review data were collected, sentiment analysis was conducted. First, the data were transformed in tidy format to prepare for the analysis.  
+
+```{r}
+yelpReviews <- read.csv(file="C:/yelpReviews.csv", header=TRUE, sep=",")
+yelpReviews <- data.frame(lapply(yelpReviews, as.character), stringsAsFactors=FALSE)
+
+names(yelpReviews) <- c("person_id", "id", "resturant", "starRating", "review")
+yelpReviews$star <- as.numeric(str_extract(yelpReviews$starRating, "[0-9]+"))
+
+
+## Create review tidy format
+tidy_reviews <- yelpReviews %>%
+  select(person_id, id, resturant, star, review) %>%
+  unnest_tokens(word, review) %>%
+  filter(!word %in% stop_words$word,
+         str_detect(word, "^[a-z']+$"))
+
+```
+
+#### AFFIN score
+To examine if a customer's star rating is consistent with his/her actual review, AFFIN scores for the words that customers used were examined. Except for a couple of outliers, it was found that customers' star ratings are very consistent with their actual reviews.   
+
+```{r}
+AFINN <- sentiments %>%
+  filter(lexicon == "AFINN") %>%
+  select(word, afinn_score = score)
+
+## Examine if the star rating is consistent with reviews
+reviews_sentiment <- tidy_reviews  %>%
+  inner_join(AFINN, by = "word") %>%
+  group_by(person_id, star) %>%
+  summarize(sentiment = mean(afinn_score))
+theme_set(theme_bw())
+
+ggplot(reviews_sentiment, aes(star, sentiment, group = star)) +
+  geom_boxplot() +
+  ylab("Average sentiment score")
+```
+
+#### Frequently Used Words
+Specific words that customers used in their reviews were examined. Positive or Negative Words that used more than 25 reviews for more than 5 restaurants were examined. 
+
+```{r}
+reviews_counted <- tidy_reviews %>%
+  count(person_id, resturant, star, word) %>%
+  ungroup()
+
+## Summerize words 
+word_summaries <- reviews_counted %>%
+  group_by(word) %>%
+  summarize(resturants = n_distinct(resturant),
+            reviews = n(),
+            uses = sum(n),
+            average_stars = mean(star)) %>%
+  ungroup()
+
+## Select words appreared more than 25 times 
+word_summaries_filtered <- word_summaries %>%
+  filter(reviews >= 25, resturants >= 5)
+
+word_summaries_filtered %>%
+  arrange(desc(average_stars))
+
+word_summaries_filtered %>%
+  arrange(average_stars)
+
+```
+
+Based on the plot of number of words that appeared in reviews versus average star ratings by customer, words including 'delicious', 'amazing' were frequently used as well as had higher star ratings. On the other hand, words including 'worst', 'horrible' were frequently used as well as had lower star ratings.     
+
+```{r}
+ggplot(word_summaries, aes(reviews, average_stars)) +
+  geom_point() +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1, hjust = 1) +
+  scale_x_log10() +
+  #geom_hline(yintercept = mean(star), color = "red", lty = 2) +
+  xlab("# of reviews") +
+  ylab("Average Stars")
+
+```
+
+#### Comparing to Sentiment Analysis
+The sentiment analysis was compared to average star ratings. As shown the graphs, the sentiment analysis based on AFFIN seems to predict positive and negative reviews fairly well. There were some exceptions for example, the word 'die' has negative AFFIN score whereas it has high average star ratings (e.g. the grilled salmon is to die for!). Overall, the sentiment analysis seems to capture customers positive/negative reviews.     
+
+```{r}
+words_afinn <- word_summaries %>%
+  inner_join(AFINN)
+
+ggplot(words_afinn, aes(afinn_score, average_stars, group = afinn_score)) +
+  geom_boxplot() +
+  xlab("AFINN score of word") +
+  ylab("Average stars of reviews with this word")
+
+
+ggplot(words_afinn, aes(afinn_score, average_stars, size = reviews)) + 
+  geom_smooth(method="lm", se=FALSE, show.legend=FALSE) +
+  geom_text(aes(label = word, size = NULL), check_overlap = TRUE, vjust=1, hjust=1) +
+  geom_point() +
+  scale_x_continuous(limits = c(-6,6)) +
+  xlab("AFINN sentiment score") +
+  ylab("Average Yelp stars")
+
+ggplot(words_afinn, aes(reviews, average_stars, color = afinn_score)) +
+  geom_point() +
+  geom_text(aes(label = word), check_overlap = TRUE, vjust = 1, hjust = 1) +
+  scale_x_log10() +
+  #geom_hline(yintercept = mean(star), color = "red", lty = 2) +
+  scale_colour_gradient2("AFINN", low = "red", mid = "white", high = "blue", limits = c(-5,5)) +
+  xlab("# of reviews") +
+  ylab("Average Stars")
+```
+
+## Reference
+
+https://newyork.seriouseats.com/2010/07/a-guide-to-the-new-restaurant-grading-system.html
+
+
+
+
+
+
+
+
+
+```
+
